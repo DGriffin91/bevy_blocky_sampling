@@ -42,8 +42,10 @@ fn v2len(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
 
 // Samples from a linearly-interpolated texture to produce an appearance similar to
 // nearest-neighbor interpolation, but with resolution-dependent antialiasing
-fn texture_blocky(tex: texture_2d<f32>, samp: sampler, uv: vec2<f32>, resolution: vec2<f32>) -> vec4<f32> {
-    var uv = uv * resolution; // enter texel coordinate space.
+fn texture_blocky(tex: texture_2d<f32>, samp: sampler, uv: vec2<f32>) -> vec4<f32> {
+    let tex_res = vec2<f32>(textureDimensions(base_color_texture));
+
+    var uv = uv * tex_res; // enter texel coordinate space.
     
     let seam = floor(uv + 0.5); // find the nearest seam between texels.
     
@@ -52,12 +54,13 @@ fn texture_blocky(tex: texture_2d<f32>, samp: sampler, uv: vec2<f32>, resolution
     
     uv = clamp(uv, seam - 0.5, seam + 0.5); // clamp to the center of a texel.
     
-    return textureSample(tex, samp, uv / resolution); // convert back to 0..1 coordinate space.
+    return textureSample(tex, samp, uv / tex_res); // convert back to 0..1 coordinate space.
 }
 
 // Simulates nearest-neighbor interpolation on a linearly-interpolated texture
-fn texture_nearest(tex: texture_2d<f32>, samp: sampler, uv: vec2<f32>, resolution: vec2<f32>) -> vec4<f32> {
-    return textureSample(tex, samp, (floor(uv * resolution) + 0.5) / resolution);
+fn texture_nearest(tex: texture_2d<f32>, samp: sampler, uv: vec2<f32>) -> vec4<f32> {
+    let tex_res = vec2<f32>(textureDimensions(base_color_texture));
+    return textureSample(tex, samp, (floor(uv * tex_res) + 0.5) / tex_res);
 }
 
 [[stage(fragment)]]
@@ -65,15 +68,13 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
     
     var pbr_input: PbrInput;
 
-    let texture_res = vec2<f32>(textureDimensions(base_color_texture));
-
     // Select sampling mode based on uniform parameter
     if (material.sampling_mode == 0u) {
         pbr_input.material.base_color = textureSample(base_color_texture, base_color_sampler, in.uv);
     } else if (material.sampling_mode == 1u) { 
-        pbr_input.material.base_color = texture_nearest(base_color_texture, base_color_sampler, in.uv, texture_res);
+        pbr_input.material.base_color = texture_nearest(base_color_texture, base_color_sampler, in.uv);
     } else if (material.sampling_mode == 2u) { 
-        pbr_input.material.base_color = texture_blocky(base_color_texture, base_color_sampler, in.uv, texture_res);
+        pbr_input.material.base_color = texture_blocky(base_color_texture, base_color_sampler, in.uv);
     }
 
     pbr_input.material.reflectance = 0.5;
