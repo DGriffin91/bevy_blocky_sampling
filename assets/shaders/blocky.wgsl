@@ -35,35 +35,29 @@ struct FragmentInput {
 
 //CC0 ported from https://www.shadertoy.com/view/ltfXWS
 
-// basically calculates the lengths of (a.x, b.x) and (a.y, b.y) at the same time
+// Calculates the lengths of (a.x, b.x) and (a.y, b.y) at the same time
 fn v2len(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
-    return sqrt(a*a+b*b);
+    return sqrt(a * a + b * b);
 }
 
-// samples from a linearly-interpolated texture to produce an appearance similar to
+// Samples from a linearly-interpolated texture to produce an appearance similar to
 // nearest-neighbor interpolation, but with resolution-dependent antialiasing
-// 
-// this function's interface is exactly the same as texture's, aside from the 'res'
-// parameter, which represents the resolution of the texture 'tex'.
-fn texture_blocky(tex: texture_2d<f32>, samp: sampler, uv: vec2<f32>, res: vec2<f32>) -> vec4<f32> {
-    var uv = uv * res; // enter texel coordinate space.
+fn texture_blocky(tex: texture_2d<f32>, samp: sampler, uv: vec2<f32>, resolution: vec2<f32>) -> vec4<f32> {
+    var uv = uv * resolution; // enter texel coordinate space.
     
-    let seam = floor(uv+.5); // find the nearest seam between texels.
+    let seam = floor(uv + 0.5); // find the nearest seam between texels.
     
-    // here's where the magic happens. scale up the distance to the seam so that all
-    // interpolation happens in a one-pixel-wide space.
-    uv = (uv-seam)/v2len(dpdx(uv),dpdy(uv))+seam;
+    // scale up the distance to the seam so that all interpolation happens in a one-pixel-wide space.
+    uv = (uv - seam) / v2len(dpdx(uv), dpdy(uv)) + seam;
     
     uv = clamp(uv, seam - 0.5, seam + 0.5); // clamp to the center of a texel.
     
-    return textureSample(tex, samp, uv/res); // convert back to 0..1 coordinate space.
+    return textureSample(tex, samp, uv / resolution); // convert back to 0..1 coordinate space.
 }
 
-// simulates nearest-neighbor interpolation on a linearly-interpolated texture
-// 
-// this function's interface is exactly the same as textureBlocky's.
-fn texture_ugly(tex: texture_2d<f32>, samp: sampler, uv: vec2<f32>, res: vec2<f32>) -> vec4<f32> {
-    return textureSample(tex, samp, (floor(uv*res) + 0.5)/res);
+// Simulates nearest-neighbor interpolation on a linearly-interpolated texture
+fn texture_nearest(tex: texture_2d<f32>, samp: sampler, uv: vec2<f32>, resolution: vec2<f32>) -> vec4<f32> {
+    return textureSample(tex, samp, (floor(uv * resolution) + 0.5) / resolution);
 }
 
 [[stage(fragment)]]
@@ -77,7 +71,7 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
     if (material.sampling_mode == 0u) {
         pbr_input.material.base_color = textureSample(base_color_texture, base_color_sampler, in.uv);
     } else if (material.sampling_mode == 1u) { 
-        pbr_input.material.base_color = texture_ugly(base_color_texture, base_color_sampler, in.uv, texture_res);
+        pbr_input.material.base_color = texture_nearest(base_color_texture, base_color_sampler, in.uv, texture_res);
     } else if (material.sampling_mode == 2u) { 
         pbr_input.material.base_color = texture_blocky(base_color_texture, base_color_sampler, in.uv, texture_res);
     }
