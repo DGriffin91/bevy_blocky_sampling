@@ -1,7 +1,7 @@
 # Bevy Blocky Sampling
 Example Project showing how to implement basic AA for blocky textures.
 
-Depends on bevy main branch.
+Depends on bevy 0.8
 
 This anti aliased sampling technique is implemented at the texture sampling stage rather than as post process. Making use of bilinear interpolation, it only samples the texture a single time.
 
